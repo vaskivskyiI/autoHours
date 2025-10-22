@@ -38,11 +38,29 @@ class StroskovnikPDFGenerator {
         try {
             const result = await chrome.storage.sync.get({
                 arrivalTime: '09:00',
-                scatteringMinutes: 10
+                scatteringMinutes: 10,
+                enableSecondary: false,
+                secondaryName: '',
+                secondaryPercent: 0,
+                secondaryIncludeBreaks: true
             });
-            this.settings = result;
+            
+            // Ensure numeric values are properly parsed
+            this.settings = {
+                ...result,
+                scatteringMinutes: parseInt(result.scatteringMinutes) || 10,
+                secondaryPercent: parseFloat(result.secondaryPercent) || 0
+            };
         } catch (error) {
             // Keep default settings
+            this.settings = {
+                arrivalTime: '09:00',
+                scatteringMinutes: 10,
+                enableSecondary: false,
+                secondaryName: '',
+                secondaryPercent: 0,
+                secondaryIncludeBreaks: true
+            };
         }
     }
 
@@ -270,10 +288,73 @@ class StroskovnikPDFGenerator {
                 throw new Error('PDFMake library not available');
             }
 
-            const docDefinition = this.createPDFMakeDocument(data);
-            const filename = this.generateFilename(data);
+            // First PDF as before
+            const docDefinition1 = this.createPDFMakeDocument(data);
+            const filename1 = this.generateFilename(data);
+            pdfMake.createPdf(docDefinition1).download(filename1);
 
-            pdfMake.createPdf(docDefinition).download(filename);
+            // If secondary work is enabled, create second PDF based on first PDF times
+            if (this.settings.enableSecondary && this.settings.secondaryPercent > 0) {
+                // Calculate times for all days to get concrete arrival/departure times
+                const extracted = this.calculateTimesForAllDays(data);
+
+                // Build second data copy and modify as per secondary settings
+                const secondData = JSON.parse(JSON.stringify(data));
+                secondData.name = data.name; // Keep the same name and surname as original
+
+                // For each day, shift times: arrival = first.departure, compute new departure based on percent
+                secondData.tableData = extracted.map(day => {
+                    if (day.type === 'business-trip') {
+                        return Object.assign({}, day, {
+                            arrival: '-',
+                            departure: '-',
+                            totalHours: day.totalHours,
+                            workHours: 0,
+                            breakMinutes: 0,
+                            type: 'business-trip'
+                        });
+                    }
+
+                    // Parse departure time of first PDF to minutes
+                    const depParts = day.departure.split(':').map(Number);
+                    const departureMinutesFirst = depParts[0] * 60 + depParts[1];
+
+                    // Arrival for second PDF equals departure of first
+                    const arrivalMinutesSecond = departureMinutesFirst;
+
+                    // Compute work minutes from percentage: percent / 100 * 8h
+                    const percent = parseFloat(this.settings.secondaryPercent) || 0;
+                    const workHoursSecond = isNaN(percent) || percent <= 0 ? 0 : (percent / 100) * 8;
+                    const workMinutesSecond = Math.round(workHoursSecond * 60);
+
+                    // Breaks: either included or skipped
+                    let breakMinutesSecond = 0;
+                    if (this.settings.secondaryIncludeBreaks) {
+                        breakMinutesSecond = Math.round(30 * (workHoursSecond / 8));
+                    }
+
+                    const departureMinutesSecond = arrivalMinutesSecond + workMinutesSecond;
+
+                    return {
+                        day: day.day,
+                        type: 'normal-work',
+                        arrival: this.formatTime(arrivalMinutesSecond),
+                        departure: this.formatTime(departureMinutesSecond),
+                        totalHours: workHoursSecond || 0,
+                        workHours: workHoursSecond || 0,
+                        breakMinutes: breakMinutesSecond || 0
+                    };
+                });
+
+                const docDefinition2 = this.createPDFMakeDocumentFromCalculatedData(secondData, secondData.tableData);
+                // Generate filename based on original data but append work name
+                const baseFilename = this.generateFilename(data);
+                const workName = this.settings.secondaryName || 'Secondary';
+                const cleanWorkName = workName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').trim();
+                const filename2 = baseFilename.replace('.pdf', `_${cleanWorkName}.pdf`);
+                pdfMake.createPdf(docDefinition2).download(filename2);
+            }
+
             alert('PDF generated successfully! Check your downloads folder.');
 
         } catch (error) {
@@ -317,15 +398,132 @@ class StroskovnikPDFGenerator {
                     '-'
                 ]);
             } else {
+                const totalHours = parseFloat(dayData.totalHours) || 0;
+                const workHours = parseFloat(dayData.workHours) || 0;
+                const breakMinutes = parseInt(dayData.breakMinutes) || 0;
+                
                 tableBody.push([
                     this.formatDate(dayData.day, data.period),
                     dayData.arrival,
                     dayData.departure,
-                    dayData.totalHours.toFixed(1) + ' ur',
-                    dayData.breakMinutes + ' min'
+                    totalHours.toFixed(1) + ' ur',
+                    breakMinutes + ' min'
                 ]);
-                totalWorkHours += dayData.workHours;
-                totalBreakMinutes += dayData.breakMinutes;
+                totalWorkHours += workHours;
+                totalBreakMinutes += breakMinutes;
+            }
+        });
+
+        tableBody.push([
+            { text: 'Skupaj:', style: 'tableHeader' },
+            '',
+            '',
+            { text: totalWorkHours.toFixed(1) + ' ur', style: 'tableHeader' },
+            { text: totalBreakMinutes + ' min', style: 'tableHeader' }
+        ]);
+
+        return {
+            content: [
+                {
+                    text: 'Pregled delovnega časa',
+                    style: 'title',
+                    alignment: 'center',
+                    margin: [0, 0, 0, 10]
+                },
+                {
+                    text: `${data.period} - ${data.name}`,
+                    style: 'subtitle',
+                    alignment: 'center',
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['auto', 'auto', 'auto', 'auto', 'auto'],
+                        body: tableBody
+                    },
+                    layout: {
+                        fillColor: function (rowIndex, node, columnIndex) {
+                            return (rowIndex % 2 === 0) ? '#f5f5f5' : null;
+                        },
+                        hLineWidth: function (i, node) {
+                            return (i === 0 || i === node.table.body.length) ? 2 : 1;
+                        },
+                        vLineWidth: function (i, node) {
+                            return (i === 0 || i === node.table.widths.length) ? 2 : 1;
+                        },
+                        hLineColor: function (i, node) {
+                            return (i === 0 || i === node.table.body.length) ? 'black' : 'gray';
+                        },
+                        vLineColor: function (i, node) {
+                            return (i === 0 || i === node.table.widths.length) ? 'black' : 'gray';
+                        }
+                    }
+                }
+            ],
+            styles: {
+                title: {
+                    fontSize: 16,
+                    bold: true,
+                    margin: [0, 0, 0, 10]
+                },
+                subtitle: {
+                    fontSize: 12,
+                    italics: true,
+                    margin: [0, 0, 0, 20]
+                },
+                tableHeader: {
+                    bold: true,
+                    fontSize: 10,
+                    color: 'black',
+                    fillColor: '#e0e0e0'
+                }
+            },
+            defaultStyle: {
+                fontSize: 9
+            },
+            pageOrientation: 'portrait',
+            pageSize: 'A4'
+        };
+    }
+
+    createPDFMakeDocumentFromCalculatedData(data, extractedData) {
+        const tableBody = [
+            [
+                { text: 'Datum', style: 'tableHeader' },
+                { text: 'Čas prihoda', style: 'tableHeader' },
+                { text: 'Čas odhoda', style: 'tableHeader' },
+                { text: 'Skupaj število ur', style: 'tableHeader' },
+                { text: 'Odmor med delovnim časom', style: 'tableHeader' }
+            ]
+        ];
+
+        let totalWorkHours = 0;
+        let totalBreakMinutes = 0;
+
+        extractedData.forEach((dayData) => {
+            if (dayData.type === 'business-trip') {
+                tableBody.push([
+                    this.formatDate(dayData.day, data.period),
+                    '-',
+                    '-',
+                    { text: 'Službeno potovanje', italics: true },
+                    '-'
+                ]);
+            } else {
+                const totalHours = parseFloat(dayData.totalHours) || 0;
+                const workHours = parseFloat(dayData.workHours) || 0;
+                const breakMinutes = parseInt(dayData.breakMinutes) || 0;
+                
+                tableBody.push([
+                    this.formatDate(dayData.day, data.period),
+                    dayData.arrival,
+                    dayData.departure,
+                    totalHours.toFixed(1) + ' ur',
+                    breakMinutes + ' min'
+                ]);
+                totalWorkHours += workHours;
+                totalBreakMinutes += breakMinutes;
             }
         });
 

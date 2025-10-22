@@ -159,6 +159,27 @@
             <input type="number" id="scatteringMinutes" class="setting-input" min="0" max="60" value="10">
             <div class="setting-hint">Random variation in arrival time</div>
         </div>
+            <div class="setting-group">
+                <h3>Secondary work (tailgate)</h3>
+                <label class="setting-label" for="enableSecondary">
+                    <input type="checkbox" id="enableSecondary" /> Enable secondary work generation
+                </label>
+                <div class="secondary-settings" id="secondarySettings" style="margin-top:8px; display:none;">
+                    <div class="setting-group">
+                        <label class="setting-label" for="secondaryName">Work Name:</label>
+                        <input type="text" id="secondaryName" class="setting-input" placeholder="e.g., Part-time job" />
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label" for="secondaryPercent">Percentage of employment (%):</label>
+                        <input type="number" id="secondaryPercent" class="setting-input" min="1" max="200" />
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label" for="secondaryIncludeBreaks">
+                            <input type="checkbox" id="secondaryIncludeBreaks" /> Include breaks in calculations
+                        </label>
+                    </div>
+                </div>
+            </div>
     </div>
     
     <div id="preview" class="preview hidden">

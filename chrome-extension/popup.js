@@ -5,30 +5,48 @@ document.addEventListener('DOMContentLoaded', async function() {
     const previewContent = document.getElementById('preview-content');
     const arrivalTimeInput = document.getElementById('arrivalTime');
     const scatteringMinutesInput = document.getElementById('scatteringMinutes');
-    
+    const enableSecondaryInput = document.getElementById('enableSecondary');
+    const secondarySettingsDiv = document.getElementById('secondarySettings');
+    const secondaryNameInput = document.getElementById('secondaryName');
+    const secondaryPercentInput = document.getElementById('secondaryPercent');
+    const secondaryIncludeBreaksInput = document.getElementById('secondaryIncludeBreaks');
+
     // Default settings
     const defaultSettings = {
         arrivalTime: '09:00',
-        scatteringMinutes: 10
+        scatteringMinutes: 10,
+        enableSecondary: false,
+        secondaryName: '',
+        secondaryPercent: 0,
+        secondaryIncludeBreaks: true
     };
-    
+
     // Load saved settings
     async function loadSettings() {
         try {
             const result = await chrome.storage.sync.get(defaultSettings);
             arrivalTimeInput.value = result.arrivalTime;
             scatteringMinutesInput.value = result.scatteringMinutes;
+            enableSecondaryInput.checked = !!result.enableSecondary;
+            secondaryNameInput.value = result.secondaryName || '';
+            secondaryPercentInput.value = result.secondaryPercent || '';
+            secondaryIncludeBreaksInput.checked = (result.secondaryIncludeBreaks !== undefined) ? result.secondaryIncludeBreaks : true;
+            secondarySettingsDiv.style.display = enableSecondaryInput.checked ? 'block' : 'none';
         } catch (error) {
             console.error('Error loading settings:', error);
         }
     }
-    
+
     // Save settings when changed
     async function saveSettings() {
         try {
             const settings = {
                 arrivalTime: arrivalTimeInput.value,
-                scatteringMinutes: parseInt(scatteringMinutesInput.value) || 0
+                scatteringMinutes: parseInt(scatteringMinutesInput.value) || 0,
+                enableSecondary: !!enableSecondaryInput.checked,
+                secondaryName: secondaryNameInput.value || '',
+                secondaryPercent: parseFloat(secondaryPercentInput.value) || 0,
+                secondaryIncludeBreaks: !!secondaryIncludeBreaksInput.checked
             };
             await chrome.storage.sync.set(settings);
             console.log('Settings saved:', settings);
@@ -36,13 +54,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.error('Error saving settings:', error);
         }
     }
-    
+
     // Load settings on startup
     await loadSettings();
-    
+
     // Save settings when inputs change
     arrivalTimeInput.addEventListener('change', saveSettings);
     scatteringMinutesInput.addEventListener('change', saveSettings);
+    enableSecondaryInput.addEventListener('change', () => { secondarySettingsDiv.style.display = enableSecondaryInput.checked ? 'block' : 'none'; saveSettings(); });
+    secondaryNameInput.addEventListener('input', saveSettings);
+    secondaryPercentInput.addEventListener('change', saveSettings);
+    secondaryIncludeBreaksInput.addEventListener('change', saveSettings);
     
     // Check if we're on the right page
     try {

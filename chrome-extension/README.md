@@ -11,6 +11,7 @@ Chrome extension that automatically generates PDF timesheets from Stroskovnik pa
 - Calculates breaks based on total working hours (30 min × hours/8)
 - Generates professional PDF timesheet with proper Slovenian Unicode characters (č, š, ž, Č, Š, Ž)
 - **Configurable arrival time and scattering** that persists across browser restarts
+- **Secondary work (tailgate) support**: Generate two PDFs - primary and secondary work with configurable percentage and break inclusion
 - Clean, production-ready extension without debug code
 
 ## Installation
@@ -34,25 +35,36 @@ Chrome extension that automatically generates PDF timesheets from Stroskovnik pa
 3. **Configure Settings** (optional):
    - **Arrival Time**: Set your base arrival time (default: 09:00)
    - **Scattering**: Set random variation in minutes (default: ±10 minutes)
+   - **Secondary Work**: Enable and configure additional work PDF generation
    - Settings are automatically saved and persist across browser restarts
 4. Use the popup interface to generate or preview the PDF
-5. The PDF will be automatically downloaded to your default downloads folder
+5. The PDF(s) will be automatically downloaded to your default downloads folder
 
 **Note:** The floating button only appears on pages within `https://eds.ijs.si/workflow/activity/`
 
 ## Settings
 
-The extension allows you to customize arrival times:
+The extension allows you to customize arrival times and enable secondary work generation:
 
 - **Arrival Time**: Base time when you arrive at work (format: HH:MM)
 - **Scattering**: Random variation applied to arrival time (± minutes)
   - Example: Arrival Time = 09:00, Scattering = 10 → Arrival between 08:50-09:10
 
+### Secondary Work (Tailgate) Settings:
+- **Enable Secondary Work**: Toggle to generate a second PDF for additional employment
+- **Work Name**: Custom name for the secondary work (appears in PDF title and filename)
+- **Percentage of Employment**: Percentage of full-time work (100% = 8 hours per day)
+- **Include Breaks**: Whether to calculate and include break times in secondary work PDF
+
+When secondary work is enabled, the extension generates two PDFs:
+1. **Primary PDF**: Uses your configured arrival time and scattering
+2. **Secondary PDF**: Arrival time equals the departure time from the primary PDF, working hours calculated from the percentage setting
+
 Settings are stored using Chrome's sync storage and will persist across browser sessions and device sync.
 
 ## PDF Output
 
-The generated PDF includes:
+The generated PDF(s) include:
 - Employee name and period from the webpage
 - Professional table with Slovenian headers:
   - **Datum** (Date)
@@ -62,6 +74,10 @@ The generated PDF includes:
   - **Odmor med delovnim časom** (Break Duration in minutes)
 - Monthly total hours summary
 - Special handling for business trips ("Službeno potovanje" instead of times)
+
+When secondary work is enabled, two separate PDF files are generated with different filenames:
+- Primary PDF: `Oktober_2025_YourName.pdf`
+- Secondary PDF: `Oktober_2025_YourName_SecondaryWorkName.pdf`
 
 ## Calculation Logic
 
@@ -74,9 +90,19 @@ The generated PDF includes:
 - Shows "Službeno potovanje" instead of specific times
 - No time calculations performed
 
+### Secondary Work (when enabled):
+- Arrival time: Equals the departure time from the primary PDF for each day
+- Working hours: (Percentage ÷ 100) × 8 hours
+- Departure time: Arrival + calculated working hours
+- Break time: 30 minutes × (working hours ÷ 8 hours) if "Include Breaks" is enabled, otherwise 0
+- Employee name: Same as primary PDF (original name and surname)
+- Filename: Primary filename with work name appended (e.g., `Oktober_2025_Name_SecondaryWork.pdf`)
+
 ### Example:
-- Settings: Arrival Time = 08:30, Scattering = 15
+- Primary Settings: Arrival Time = 08:30, Scattering = 15
 - For 8 hours work: Arrival = 08:30 ± 15min, Break = 30min, Departure = Arrival + 8 hours
+- Secondary Settings: Percentage = 50%, Include Breaks = true
+- Secondary PDF: Arrival = Primary Departure, Working Hours = 4 hours, Break = 15min, Departure = Arrival + 4 hours
 
 ## Compatibility
 
@@ -111,8 +137,10 @@ To modify or extend the extension:
 ### Key Functions:
 - `parsePageData()`: Extracts data from timesheet table
 - `extractWorkingDays()`: Processes work hours by day and type
-- `generatePDF()`: Creates and downloads the PDF (reloads latest settings)
+- `generatePDF()`: Creates and downloads the PDF(s) (reloads latest settings, generates secondary PDF if enabled)
 - `calculateTimes()`: Computes arrival/departure times and breaks using user settings
+- `createPDFMakeDocument()`: Creates PDF document from raw data
+- `createPDFMakeDocumentFromCalculatedData()`: Creates PDF document from pre-calculated data (for secondary work)
 - `loadSettings()`: Loads user preferences from Chrome storage
 - `addFloatingButton()`: Creates floating button on valid pages
 
