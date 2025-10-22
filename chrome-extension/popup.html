@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 300px;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status.success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .status.info {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #bbdefb;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .generate-btn:hover {
+            background-color: #1565c0;
+        }
+        
+        .generate-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .preview {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .preview-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .settings {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .settings-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        
+        .setting-group {
+            margin-bottom: 12px;
+        }
+        
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .setting-label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #495057;
+        }
+        
+        .setting-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .setting-input:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+        
+        .setting-hint {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Stroškovnik PDF</div>
+        <div class="subtitle">Automatic Timesheet Generator</div>
+    </div>
+    
+    <div id="status" class="status info">
+        Ready to generate PDF from timesheet data
+    </div>
+    
+    <div class="settings">
+        <div class="settings-title">⚙️ Settings</div>
+        
+        <div class="setting-group">
+            <label class="setting-label" for="arrivalTime">Arrival Time (HH:MM)</label>
+            <input type="time" id="arrivalTime" class="setting-input" value="09:00">
+            <div class="setting-hint">Base arrival time for work days</div>
+        </div>
+        
+        <div class="setting-group">
+            <label class="setting-label" for="scatteringMinutes">Scattering (± minutes)</label>
+            <input type="number" id="scatteringMinutes" class="setting-input" min="0" max="60" value="10">
+            <div class="setting-hint">Random variation in arrival time</div>
+        </div>
+    </div>
+    
+    <div id="preview" class="preview hidden">
+        <div class="preview-label">Preview:</div>
+        <div id="preview-content"></div>
+    </div>
+    
+    <button id="generateBtn" class="generate-btn">Generate PDF</button>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

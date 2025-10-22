@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Stroskovnik PDF Generator",
+  "version": "1.0.1",
+  "description": "Generate PDF from Stroskovnik timesheet pages",
+  
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Generate PDF"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["pdfmake.min.js", "vfs_fonts.js", "content.js"],
+      "all_frames": true
+    }
+  ],
+  
+  "host_permissions": [
+    "file://*/*",
+    "https://cdn.jsdelivr.net/*"
+  ],
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js", "*.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
