@@ -122,6 +122,7 @@ class StroskovnikPDFParser:
             "name": name,
             "period": period,
             "month": month_name.lower() if 'month_name' in locals() else "oktober",
+            "month_num": start_month if 'start_month' in locals() else "10",
             "year": start_year if 'start_year' in locals() else "2025",
             "working_days": len(working_days),
             "table_data": working_days
@@ -227,6 +228,9 @@ class StroskovnikPDFParser:
 
                     except ValueError:
                         continue
+
+        # Filter to only include days with normal work hours (001 > 0) or business trip hours (002 > 0)
+        working_days = [d for d in working_days if d["totalHours001"] > 0 or d["totalHours002"] > 0]
 
         return sorted(working_days, key=lambda x: x["day"])
 
@@ -409,6 +413,10 @@ class StroskovnikPDFParser:
             month_name = 'Oktober'
             year = '2025'
 
+        # Use month number for better sorting
+        month_num = data.get('month_num', '10')
+        year = data.get('year', '2025')
+
         # Clean name for filename
         clean_name = re.sub(r'[^a-zA-Z\s]', '', data['name'])
         clean_name = re.sub(r'\s+', '_', clean_name).strip()
@@ -416,7 +424,7 @@ class StroskovnikPDFParser:
         if not clean_name:
             clean_name = 'Timesheet'
 
-        return f"{month_name}_{year}_{clean_name}"
+        return f"{month_num}_{year}_{clean_name}"
 
     def _generate_secondary_filename(self, data: Dict, secondary_work: Dict) -> str:
         """Generate filename for secondary work PDF"""
@@ -615,14 +623,9 @@ class StroskovnikPDFParser:
                 print(f"Failed to parse {pdf_file.name}, skipping...")
                 continue
 
-            # Create month/year subfolder for organization
-            month_year = f"{data['month'].capitalize()}_{data['year']}"
-            month_output_dir = output_dir / month_year
-            month_output_dir.mkdir(exist_ok=True)
-
             # Generate base filename
             base_name = self._generate_filename(data)
-            output_path = month_output_dir / f"{base_name}.pdf"
+            output_path = output_dir / f"{base_name}.pdf"
 
             # Process the file
             if self.process_file(str(pdf_file), str(output_path), secondary_work):

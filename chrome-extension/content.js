@@ -248,11 +248,19 @@ class StroskovnikPDFGenerator {
 
         const monthMatch = workingText.match(/(januar|februar|marec|april|maj|junij|julij|avgust|september|oktober|november|december)\s+(\d{4})/i);
         let month = 'oktober';
+        let month_num = '10';
         let year = '2025';
 
         if (monthMatch) {
             month = monthMatch[1].toLowerCase();
             year = monthMatch[2];
+            
+            const months = {
+                'januar': '01', 'februar': '02', 'marec': '03', 'april': '04',
+                'maj': '05', 'junij': '06', 'julij': '07', 'avgust': '08',
+                'september': '09', 'oktober': '10', 'november': '11', 'december': '12'
+            };
+            month_num = months[month] || '10';
         }
 
         const nameParts = workingText.split(' - ');
@@ -270,6 +278,7 @@ class StroskovnikPDFGenerator {
             name: personName,
             period: `${month} ${year}`,
             month: month,
+            month_num: month_num,
             year: year
         };
     }
@@ -288,16 +297,16 @@ class StroskovnikPDFGenerator {
                 throw new Error('PDFMake library not available');
             }
 
-            // First PDF as before
-            const docDefinition1 = this.createPDFMakeDocument(data);
+            // Calculate times for all days to get concrete arrival/departure times (used for both primary and secondary)
+            const extracted = this.calculateTimesForAllDays(data);
+
+            // First PDF using the calculated times
+            const docDefinition1 = this.createPDFMakeDocumentFromCalculatedData(data, extracted);
             const filename1 = this.generateFilename(data);
             pdfMake.createPdf(docDefinition1).download(filename1);
 
             // If secondary work is enabled, create second PDF based on first PDF times
             if (this.settings.enableSecondary && this.settings.secondaryPercent > 0) {
-                // Calculate times for all days to get concrete arrival/departure times
-                const extracted = this.calculateTimesForAllDays(data);
-
                 // Build second data copy and modify as per secondary settings
                 const secondData = JSON.parse(JSON.stringify(data));
                 secondData.name = data.name; // Keep the same name and surname as original
@@ -691,13 +700,9 @@ class StroskovnikPDFGenerator {
     }
     
     generateFilename(data) {
-        const monthNames = {
-            'januar': 'Januar', 'februar': 'Februar', 'marec': 'Marec', 'april': 'April',
-            'maj': 'Maj', 'junij': 'Junij', 'julij': 'Julij', 'avgust': 'Avgust',
-            'september': 'September', 'oktober': 'Oktober', 'november': 'November', 'december': 'December'
-        };
-
-        const monthName = monthNames[data.month.toLowerCase()] || 'Oktober';
+        // Use month number for better sorting
+        const monthNum = data.month_num || '10';
+        const year = data.year || '2025';
 
         let cleanName = data.name
             .replace(/[^a-zA-Z\s]/g, '')
@@ -708,7 +713,7 @@ class StroskovnikPDFGenerator {
             cleanName = 'Timesheet';
         }
 
-        return `${monthName}_${data.year}_${cleanName}.pdf`;
+        return `${monthNum}_${year}_${cleanName}.pdf`;
     }
 }
 

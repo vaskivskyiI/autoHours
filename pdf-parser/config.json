@@ -2,8 +2,8 @@
   "arrival_time": "08:30",
   "scattering_minutes": 15,
   "enable_secondary": true,
-  "secondary_name": "TestCompany",
-  "secondary_percent": 75.0,
-  "secondary_include_breaks": true,
+  "secondary_name": "SecondEmployer",
+  "secondary_percent": 20.0,
+  "secondary_include_breaks": false,
   "output_dir": "output"
 }
